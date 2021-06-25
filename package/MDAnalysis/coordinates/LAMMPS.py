@@ -333,9 +333,18 @@ class DATAWriter(base.WriterBase):
         self.f.write('\n')
         self.f.write('{}\n'.format(btype_sections[bonds.btype]))
         self.f.write('\n')
+        # LAMMPS expects integer bond types, so hash btype pairs
+        def bondid(btype):
+            typeA = int(btype[0])
+            typeB = int(btype[1])
+            hash_btype = lambda ida, idb: int((ida + idb) / 2 * (ida + idb + 1) + idb)
+            if typeA > typeB:
+                return hash_btype(typeA,typeB)
+            return hash_btype(typeB,typeA)
         for bond, i in zip(bonds, range(1, len(bonds)+1)):
             try:
-                self.f.write('{:d} {:d} '.format(i, int(bond.type))+\
+                bid = bondid(bond.type)
+                self.f.write('{:d} {:d} '.format(i, bid)+\
                         ' '.join((bond.atoms.indices + 1).astype(str))+'\n')
             except TypeError:
                 errmsg = (f"LAMMPS DATAWriter: Trying to write bond, but bond "
