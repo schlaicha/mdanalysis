@@ -338,17 +338,21 @@ class DATAWriter(base.WriterBase):
             typeA = int(btype[0])
             typeB = int(btype[1])
             hash_btype = lambda ida, idb: int((ida + idb) / 2 * (ida + idb + 1) + idb)
-            if typeA > typeB:
-                return hash_btype(typeA,typeB)
-            return hash_btype(typeB,typeA)
+            # map back to consecutive integer for LAMMPS
+            bondtype = dict(enumerate([hash_btype(i,j) for i in range(1,max(typeA,typeB)+1) for j in range(i,max(typeA,typeB)+1)]))
+            inv_bondtype = {v: k+1 for k, v in bondtype.items()}
+            if typeA < typeB:
+                return inv_bondtype[hash_btype(typeA,typeB)]
+            return inv_bondtype[hash_btype(typeB,typeA)]
+
         for bond, i in zip(bonds, range(1, len(bonds)+1)):
+            bid = bondid(bond.type)
             try:
-                bid = bondid(bond.type)
                 self.f.write('{:d} {:d} '.format(i, bid)+\
                         ' '.join((bond.atoms.indices + 1).astype(str))+'\n')
             except TypeError:
                 errmsg = (f"LAMMPS DATAWriter: Trying to write bond, but bond "
-                          f"type {bond.type} is not numerical.")
+                          f"type {bid} corresponding to {bond.type} is not numerical.")
                 raise TypeError(errmsg) from None
 
     def _write_dimensions(self, dimensions):
